@@ -1,0 +1,811 @@
+---
+title: "Análise sobre NBA (2004-2020)"
+author: "Thales Henrique"
+date: "05-11-2021"
+output:
+  prettydoc::html_pretty:
+    theme: tactile
+    highlight: github
+---
+
+```{r, include = FALSE}
+
+library(tidyverse)
+library(patchwork)
+library(RColorBrewer)
+
+jogos <- read_csv("data-raw/games.csv")
+
+jogos_detalhados <- read_csv("data-raw/games_details.csv")
+
+tmp <- jogos |>
+  dplyr::select(GAME_ID, GAME_DATE_EST, SEASON)
+
+jogos_detalhados <- jogos_detalhados |>
+  left_join(tmp, by = 'GAME_ID')
+
+rm("tmp")
+
+```
+
+
+# Estatísticas da NBA
+
+Os esportes de alto rendimento, atualmente, giram em torno de melhorar a eficiência de seus atletas. A utilização de estatíticas foi um dos caminhos escolhidos para melhor comparar o que cada atleta pode entregar, tornando mais fácil avaliar se vale a pena ou não contratar determinado atleta, e mensurar se ele vale, em termos financieros, o que pede.
+A NBA possui um conjunto de estatísticas básicas que norteam o desempenho de um atleta em quadra, e algumas outras avançadas, que conseguem capturar as minúcias e detalhes desse desempenho.
+Algumas dessas estatísticas também servem para mostrar como o jogo comportou-se ao longo dos anos, sendo notório que se tornou mais ofensivo nos últimos anos.
+Nesse projeto vamos tentar avaliar os atletas e os times a partir das estatísticas básicas estraídas de um conjunto de dados que contém observações desde a temporada de 2004 até a de 2020, que pode ser encontrado nesse [link](https://www.kaggle.com/nathanlauga/nba-games). Entre estas estatísticas temos algumas delas listadas abaixo:
+
+* FGM = Field Goals Made (Arremessos Feitos)
+* FGA = Field Goals Attempeted (Arremessos Tentados)
+* FG_PCT = Field Goals Percentage (Porcentagem de Arremessos Feitos)
+* FG3M = 3-Point Field Goals Made (Arremessos de 3 Pontos Feitos)
+* FG3A = 3-Point Field Goals Attempted (Arremessos de 3 Pontos Tentados)
+* FG3_PCT = 3-Point Field Goals Percentage (Porcentagem de Arremessos de 3 Pontos Feitos)
+* FTM = Free Throws Made (Arremessos Livres Feitos)
+* FTA = Free Throws Attempeted (Arremessos Livres Tentados)
+* FT_PCT = Free Throws Percentage (Porcentagem de Arremessos Livres Feitos)
+* OREB = Offensive Rebounds (Rebotes Ofensivos)
+* DREB = Defensive Rebounds (Rebotes Defensivos)
+* REB = Rebounds (Rebotes Totais)
+* MIN = Minutes
+* AST = Assists (Assistências)
+* STL = Steals (Roubos de Bola)
+* BLK = Blocks (Tocos)
+* TO = Turnovers (Erros)
+* PF = Personal Fouls (Faltas Pessoais)
+* PTS = Points (Pontos)
+* PLUS_MINUS =  É uma estatística esportiva usada para medir o impacto de um jogador em uma partida, representada pela diferença entre a pontuação total de seu time e a pontuação total do time adversário quando o jogador está na partida.
+
+## Analisando o comportamento da liga ao longo dos anos
+
+Para quem acompanha a NBA (The National Basketball Association), uma das principais ligas de basquete do planeta, é bastante percepitível que os jogos, ao longo dos anos, se tornaram mais ofensivos, com mais arremessos durante as partidas e com mais tentativas convertidas. Isso é fácil de perceber assistindo aos jogos, mas será que os dados pode comprovar isso?
+
+### Análise dos Arremessos de Quadra
+
+Para realizar a análise vamos observar o comportamento da quantidade de arremessos tentados e feitos, além da média da porcentagem de conversão de arremessos de quadra por temporada.
+
+```{r, include = FALSE}
+# Criação dos dataframes para visualização dos gráficos
+
+medias_gerais_temporada <- jogos_detalhados |>
+  group_by(SEASON) |>
+  summarise(
+    across(
+      where(is.numeric) & !contains("ID") & !contains("PLUS"), mean, na.rm = TRUE
+    )
+  )
+
+totais_gerais_temporada <- jogos_detalhados |> 
+  group_by(SEASON) |> 
+  summarise(
+    across(
+      where(is.numeric) & !contains("ID") & !contains("PLUS"), sum, na.rm = TRUE
+    )
+  )
+
+totais_gerais_temporada <- totais_gerais_temporada |> 
+  mutate(
+    Media_FG_PCT = round(medias_gerais_temporada$FG_PCT, 3),
+    Media_FG3_PCT = round(medias_gerais_temporada$FG3_PCT, 3)
+  )
+
+```
+
+```{r, echo = FALSE, fig.align ='center'}
+
+p1 <- ggplot(totais_gerais_temporada, aes(x = SEASON)) +
+  geom_line(aes(y = FGA), color = "#FF0000", size = 1) +
+  labs(
+    title = "Total de Arremessos Tentados",
+    x = "Temporada",
+    y = "Total"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 12)
+  )
+
+p2 <- ggplot(totais_gerais_temporada, aes(x = SEASON)) +
+  geom_line(aes(y = FGM), color = "#FF0000", size = 1) +
+  labs(
+    title = "Total de Arremessos Feitos",
+    x = "Temporada",
+    y = "Total"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 12)
+  )
+
+p3 <- ggplot(medias_gerais_temporada, aes(x = SEASON)) +
+  geom_line(aes(y = FG_PCT), color = "#FF0000", size = 1) +
+  labs(
+    title = "Porcentagem de Arremessos Convertidos",
+    x = "Temporada",
+    y = "Valor Médio"
+  )  +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 12)
+  )
+
+p1 / p2 / p3
+
+```
+
+A partir dos três gráficos acima, temos indícios de que realmente as partidas da NBA estão mais ofensivas, pois podemos observar que total de arremessos de quadra tentados por temporada cresceu de fomar constante desde a temporada 2004, tendo apenas como pontos fora da curva os anos de 2011 e 2019/2020, o primeiro sendo o ano com a segunda maior greve de jogadores que a NBA teve em sua história, e a segunda data, os anos acometidos pela pandemia de COVID-19, atrapalhando de forma contudente as temporadas regurlares dos respectivos anos.Da mesma forma que a quantidade de arremessos tentados e feitos cresceram, a média da porcentagem de acertos também cresceu, mostrando que a liga aos poucos se torna mais eficiente no quesito pontuação. 
+Abaixo podemos visualizar que a correlação entre os totais de arremessos tentatados e feitos com a média da porcentagem de arremessos convertidos. Podemos ver que essa correlação é positiva e possui um valor para o coeficiente de correlação da ordem de 0,5408 e 0,6455 respectivamente.
+
+Correlação entre as variáveis citadas:
+
+```{r, echo = FALSE}
+totais_gerais_temporada |>
+  select(FGA, FGM, Media_FG_PCT) |>
+  cor()
+```
+
+Visualização da relação entre as variáveis:
+
+```{r, echo = FALSE, fig.align = 'center'}
+s1 <- ggplot(totais_gerais_temporada, aes(x = FGA, y = Media_FG_PCT)) +
+  geom_point(color = "#FF0000", size = 3) +
+  labs(
+    title = "Arremessos Tentados\n X \nMédia de Arremessos Convertidos",
+    x = "Totais de Arremessos Tentados",
+    y = "Valor Médio de Arremessos Convertidos"
+  ) +
+  scale_x_continuous(
+    breaks =  seq(170000, 250000, 20000),
+    labels = c("170 mil", "190 mil", "210 mil", "230mil", "250 mil")
+  ) + 
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  )
+
+
+s2 <- ggplot(totais_gerais_temporada, aes(x = FGM, y = Media_FG_PCT)) +
+  geom_point(color = "#FF0000", size = 3) +
+  labs(
+    title = "Arremessos Feitos\n X \nMédia de Arremessos Convertidos",
+    x = "Totais de Arremessos Feitos",
+    y = "Valor Médio de Arremessos Convertidos"
+  ) +
+  scale_x_continuous(
+    breaks =  seq(70000, 120000, 10000),
+    labels = c("70 mil", "80 mil", "90 mil", "100 mil",
+               "110 mil", "120 mil")
+  ) + 
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) 
+
+s1 + s2
+```
+
+### Análise dos Arremessos de 3 Pontos 
+
+Um comportamento parecido pode ser observado no quesito arremesso de três pontos, como podemos ver nos gráficos abaixo.
+
+```{r, echo = FALSE, fig.align='center'}
+
+p4 <- ggplot(totais_gerais_temporada, aes(x = SEASON)) +
+  geom_line(aes(y = FG3A), color = "#006400", size = 1) +
+  labs(
+    title = "Total de Arremessos de 3 Pontos Tentados",
+    x = "Temporada",
+    y = "Total"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 12)
+  )
+
+p5 <- ggplot(totais_gerais_temporada, aes(x = SEASON)) +
+  geom_line(aes(y = FG3M), color = "#006400", size = 1) +
+  labs(
+    title = "Total de Arremessosde 3 Pontos Feitos",
+    x = "Temporada",
+    y = "Total"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 12)
+  )
+
+p6 <- ggplot(medias_gerais_temporada, aes(x = SEASON)) +
+  geom_line(aes(y = FG3_PCT), color = "#006400", size = 1) +
+  labs(
+    title = "Porcentagem de Arremessos de 3 Pontos Convertidos",
+    x = "Temporada",
+    y = "Valor Médio"
+  )  +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 12)
+  )
+
+p4 / p5 / p6
+
+```
+
+Com o passar dos anos a quantidade de arremessos de 3 pontos tentados e feitos foram aumentando, tendo uma quebra de sua evolução apenas no ano de 2011, como dito antes, devido a uma greve dos atletas e consequente atraso do início da temporada regular. A média da porcentagem de conversão dos arremessos de 3 pontos também aumentou, e de forma muito mais rápida a partir da temporada de 2014. A partir dessa temporada, há um consenso de que um novo padrão de jogo foi estabelecido, onde a posição de pivô clássica, caracterizada por atletas como Shaq O'Neal, Yao Ming, Kendrick Perkins e Alounzo Mourning, por exemplo, que dominavam o garrafão e tinham desempenhos defensivos importantes para a dinâmica do jogo, foi extinta. Com isso, a consolidação de um quinteto mais baixo e leve, com pivôs que espaçam na quadra (abrem linha de arremesso de três pontos), fortaleceu uma nova dinâmica de jogo, onde o mesmo se tornou muito mais ofensivo e com muito mais arremessos de quadra, tanto de dois como de três pontos.É interessante visualizar a relação entre essas variáveis. primeiro vamos verifiv=car os valores dos coeficientes de correlação e na sequência visualizar em um gráfico de pontos.
+
+```{r, echo = FALSE}
+totais_gerais_temporada |>
+  select(FGA, FGM, Media_FG_PCT) |>
+  cor()
+```
+
+Entre o total de arremessos de 3 pontos tentatados e a média de arremessos de 3 pontos convertidos temos um valor para o coeficiente de correlação de 0,5408. E entre o total e arremessos de 3 pontos feitos e a média de arremessos de 3 pontos convertidos temos um valor de 0,6455.
+
+```{r, echo = FALSE, fig.align = 'center'}
+s3 <- ggplot(totais_gerais_temporada, aes(x = FG3A, y = Media_FG3_PCT)) +
+  geom_point(color = "#006400", size = 3) +
+  labs(
+    title = "Arremessos de 3 Pontos Tentados\n X \nMédia de Arremessos Convertidos",
+    x = "Totais de Arremessos Tentados",
+    y = "Valor Médio de Arremessos Convertidos"
+   ) +
+  scale_x_continuous(
+    breaks =  seq(30000, 90000, 20000),
+    labels = c("30 mil", "50 mil", "70 mil", "90 mil")
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  )
+
+s4 <- ggplot(totais_gerais_temporada, aes(x = FG3M, y = Media_FG3_PCT)) +
+  geom_point(color = "#006400", size = 3) +
+  labs(
+    title = "Arremessos de 3 Pontoss Feitos\n X \nMédia de Arremessos Convertidos",
+    x = "Totais de Arremessos Feitos",
+    y = "Valor Médio de Arremessos Convertidos"
+  ) +
+  scale_x_continuous(
+    breaks =  seq(12000, 32000, 5000),
+    labels = c("12 mil", "17 mil", "22 mil", "27 mil",
+               "32 mil")
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  )
+
+s3 + s4
+```
+
+Paralelamente a isso iremos observar um decréscimo na quantidade de rebotes ofensivos e no aumento na quantidade de rebotes defensivos, que será explicado no próximo tópico.
+
+### Análise dos Rebotes Defensivos e Ofensivos
+
+Primeiro vamos visualizar que essa dinâmica do aumento dos rebotes defensivos e diminuição dos rebotes ofensivos realmente ocorreu a partir dos dados.
+
+```{r, echo = FALSE, fig.align = 'center'}
+
+p7 <- ggplot(totais_gerais_temporada, aes(x = SEASON)) +
+  geom_line(aes(y = DREB), color = "#000080", size = 1) +
+  labs(
+    title = "Total de Rebotes Defensivos",
+    x = "Temporada",
+    y = "Total"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 12)
+  )
+
+p8 <- ggplot(totais_gerais_temporada, aes(x = SEASON)) +
+  geom_line(aes(y = OREB), color = "#000080", size = 1) +
+  labs(
+    title = "Total de Rebotes Ofensivos",
+    x = "Temporada",
+    y = "Total"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 12)
+  )
+
+p7 + p8
+
+```
+
+No ponto de vista de quem acompanha basquete, esse padrão que ocorre com os rebotes ofensivos e defensivos, deve-se ao fato da liga está em um momento onde as posses de bola estão sendo definidas mais rápidamente. Por regra, cada equipe possui posses de bolas que duram 24 segundos. Para tornar o jogo mais ofensivo, por muitas das vezes, o arremesso é realizado em um tempo consideravelmente menor que o tempo da posse de bola. Mas então, de onde podemos tirar uma conclusão de que isso provoca o comportamento já citado no quesito rebotes? É bastante normal que quando concretizamos o arremesso de quadra muito cedo, por muitas das vezes, os atletas do time que está com a posse de bola,não tiveram tempo suficiente de conseguir boas posições no garrafão, levando a uma maior dificuldade de conseguir concretizar os rebotes ofensivos. Em contrapartida, os rebotes defensivos tornam-se mais fáceis, pois não há atletas do time que está atacando brigando por boas posições dentro do garrafão. Isso é bastante característicos em partidas onde a defesa, de certa forma, é negligenciada em detrimento do poder ofensivo.
+
+### Análise das Assistências
+
+As assistências pode ser um dos indicadores do nível de eficiência que o time se encontra, pois a assistência somente é considerada se após o passe é concretizada a cesta e os pontos. Então, nesse caso, quanto maior a quantidade de assistências em uma temporada, menos erros estão sendo cometidos por parte de quem está fazendo a finalização da jogada. Podemos tentar atribuir o aumento da média da conversão dos arremessos de quadra, a uma maior eficiência na finalização, e por consequência ao aumento do número de assistências ao longo das temporadas.
+
+```{r, echo = FALSE, fig.align = 'center'}
+
+p9 <- ggplot(totais_gerais_temporada, aes(x = SEASON)) +
+  geom_line(aes(y = AST), color = "#A020F0", size = 1) +
+  labs(
+    title = "Total de Assistências",
+    x = "Temporada",
+    y = "Total"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 12)
+  )
+
+p9
+```
+
+Se quando verificamos anteriormente que a média da porcentagem de arremessos convertidos aumentou ao longo dos anos e a quantidade de assistências também aumentou, podemos de certa forma dizer que os atletas aos poucos se tornaram mais eficientes. O coeficiente de correlação entre essas duas variáveis é da 0,6455. 
+
+```{r, echo = FALSE}
+totais_gerais_temporada |>
+  select(AST, Media_FG_PCT) |>
+  cor()
+```
+
+Sendo um valor que mostra um relação positiva de intendidade moderada, podendo ser usada como um parâmetro para embasar a hipótese de que a eficiência da liga aumentou.
+
+```{r, echo = FALSE, fig.align = 'center'}
+s5 <- ggplot(totais_gerais_temporada, aes(x = AST, y = Media_FG3_PCT)) +
+  geom_point(color = "#A020F0", size = 3) +
+  labs(
+    title = "Total de Assistências\n X \nMédia de Arremessos Convertidos",
+    x = "Total de Assistências",
+    y = "Valor Médio de Arremessos Convertidos"
+   ) +
+  scale_x_continuous(
+    breaks =  seq(45000, 70000, 8000),
+    labels = c("45 mil", "53 mil", "61 mil", "69 mil")
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  )
+
+s5
+```
+
+### Análise dos Bloqueios (Tocos)
+
+Olhando o número de tocos por temporada não da pra cravar se há alguma relação entre a quantidade de tocos e a média da porcentagem de arremessos convertidos, para isso vamor ver o valor do coeficiente de correlação entres essas variáveis.
+
+```{r, echo = FALSE, fig.align = 'center'}
+
+p10 <- ggplot(totais_gerais_temporada, aes(x = SEASON)) +
+  geom_line(aes(y = BLK), color = "#FFD700", size = 1) +
+  labs(
+    title = "Total de Bloqueios (Tocos)",
+    x = "Temporada",
+    y = "Total"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 12)
+  )
+
+p10
+```
+
+Olhando abaixo podemos ver de que não há relação entre as variáveis citadas, pois o coeficiente de correlação deu muito próximo a zero. Dessa forma é percepitível que os tocos não influenciam no comportamento ofensivo do jogo.
+
+```{r, echo = FALSE}
+totais_gerais_temporada |>
+  select(BLK, Media_FG_PCT) |>
+  cor()
+```
+
+Graficamente também é percepitível que não há relação.
+
+```{r, echo = FALSE, fig.align = 'center'}
+s5 <- ggplot(totais_gerais_temporada, aes(x = BLK, y = Media_FG_PCT)) +
+  geom_point(color = "#FFD700", size = 3) +
+  labs(
+    title = "Total de Tocos\n X \nMédia de Arremessos Convertidos",
+    x = "Total de Tocos",
+    y = "Valor Médio de Arremessos Convertidos"
+   ) +
+  scale_x_continuous(
+    breaks =  seq(10000, 16000, 2000),
+    labels = c("10 mil", "12 mil", "14 mil", "16 mil")
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  )
+
+s5
+```
+
+## Análise dos jogadores a partir das estatísticas básicas
+
+Após termos visto através dos dados que a NBA tornou-se mais ofensiva ao longo dos anos, vamos buscar no conjunto de dados, analisar os jogadores com melhores desempenhos individuais na liga, lembrando que esse conjunto de dados inicia-se em 2004 e vai até a temporada 2020. Isso implica que alguns valores que utilizaremos não represnta a estatística total da NBA. Por exemplo, não veremos dados de lendas da NBA como Michael Jordan, Magic Jhonson, Larry Bird e Isaiah Thomas, por exemplo, e nem teremos os dados completos de alguns outros atletas que tenham começado a carreira antes de 2004, como por exemplo, Ray Allen, que possui a maior marca em quantidade de pontos feitos a partir da linha dos 3 pontos, e Tim Duncam, que iniciou a carreira em 1997 e aposentou-se em 2016.
+
+### Melhores jogadores no quesito porcentagem de arremessos.
+
+```{r, echo = FALSE, fig.align = 'center'}
+
+jogos_detalhados |> 
+  group_by(PLAYER_NAME) |> 
+  summarise(
+    Media_FG_PCT = round(mean(FG_PCT, na.rm = TRUE), 3),
+    Total_FGM = sum(FGM, na.rm = TRUE),
+    Total_FGA = sum(FGA, na.rm = TRUE)
+  ) |> 
+  filter(Total_FGM > 5000) |> 
+  arrange(desc(Media_FG_PCT)) |> 
+  head(10) |> 
+  ggplot(aes(x = reorder(PLAYER_NAME, Media_FG_PCT), y = Media_FG_PCT)) +
+  geom_bar(stat = "identity", aes(fill = as.factor(-Media_FG_PCT)), show.legend = FALSE) +
+  scale_fill_brewer(palette = "RdYlGn") +
+  labs(
+    title = "Top 10 maiores médias de \nporcentagem de arremessos de quadra",
+    x = "Atleta",
+    y = "Valor Médio"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  coord_flip()
+  
+```
+
+Os dados das médias de arremessos convertidos por jogador, nem sempre representa bem o quão decisivo o atleta é ou foi durante a sua carreira. Porém, se traçarmos um gráfico com o total de arremessos de quadra feitos, quer dizer convertidos, poderemos ver os nomes das grandes estrelas que a NBA teve durante o período estudado. Lembrando que o conjunto de dados começa a partir da temporada de 2004.
+
+```{r, echo = FALSE, fig.align = 'center'}
+
+jogos_detalhados |> 
+  group_by(PLAYER_NAME) |> 
+  summarise(
+    Media_FG_PCT = round(mean(FG_PCT, na.rm = TRUE), 3),
+    Total_FGM = sum(FGM, na.rm = TRUE),
+    Total_FGA = sum(FGA, na.rm = TRUE)
+  ) |> 
+  filter(Total_FGM > 5000) |> 
+  arrange(desc(Total_FGM)) |> 
+  head(10) |> 
+  ggplot(aes(x = reorder(PLAYER_NAME, Total_FGM), y = Total_FGM)) +
+  geom_bar(stat = "identity", aes(fill = as.factor(-Total_FGM)), show.legend = FALSE) +
+  scale_fill_brewer(palette = "RdYlGn") +
+  labs(
+    title = "Top 10 total de \narremessos de quadra feitos",
+    x = "Atleta",
+    y = "Total"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  coord_flip()
+  
+```
+
+Por exemplo, Howard, mesmo sendo bastante conhecido e tendo a maior porcentagem média de arremessos convertidos, não se compara a grandeza de um Kobe Bryant ou LeBron James, cujos times dependiam e depende de suas finalizações. Atletas que fizeram história e moldaram a liga e pela quantidade de arremessos de quadra convertidos, estão entre os maiores pontuadores. Nesse ponto, podemos observar que ser decisivo acarreta em mais erros que outros jogadores não cometeriam por não terem a bola nas mãos na hora decisiva. 
+
+### Melhores jogadores no quesito arremesso de 3 pontos
+
+```{r, echo = FALSE, fig.align = 'center'}
+
+jogos_detalhados |> 
+  group_by(PLAYER_NAME) |> 
+  summarise(
+    Media_FG3_PCT = round(mean(FG3_PCT, na.rm = TRUE), 3),
+    Total_FG3M = sum(FG3M, na.rm = TRUE),
+    Total_FG3A = sum(FG3A, na.rm = TRUE)
+  ) |> 
+  filter(Total_FG3M > 1000) |> 
+  arrange(desc(Media_FG3_PCT)) |> 
+  head(10) |> 
+  ggplot(aes(x = reorder(PLAYER_NAME, Media_FG3_PCT), y = Media_FG3_PCT)) +
+  geom_bar(stat = "identity", aes(fill = as.factor(-Media_FG3_PCT)), show.legend = FALSE) +
+  scale_fill_brewer(palette = "PRGn") +
+  labs(
+    title = "Top 10 maiores médias de \nporcentagem de arremessos de 3 pontos",
+    x = "Atleta",
+    y = "Valor Médio"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  coord_flip()
+  
+```
+
+Podemos observar nessa lista nomes conhecidos quando se trata de arremessos dos 3 pontos. Stephen Curry e Klay Thompson se tornaram conhecidos por suas proezas na linha dos 3 pontos desde a temporada de 2014. Ray Allen até a presente data ainda detem o 1º lugar no total de pontos marcados da linha de 3 pontos, posto que será tomado por Stephen Curry ainda está temporada. Como o conjunto de dados inicia na temporada de 2004 e Ray Allen entrou na liga em 1996, muitos dos arremessos convertidos não aparecem nessa lista. Outro nome não tão badalado mais que é um especialista em 3 pontos é JJ Redick.
+
+Vamos ver a lista por quantidade de arremessos de 3 pontos feitos, e ver se a lista é compatível com a da média de arremessos convertidos.
+
+```{r, echo = FALSE, fig.align = 'center'}
+
+jogos_detalhados |> 
+  group_by(PLAYER_NAME) |> 
+  summarise(
+    Media_FG3_PCT = round(mean(FG3_PCT, na.rm = TRUE), 3),
+    Total_FG3M = sum(FG3M, na.rm = TRUE),
+    Total_FG3A = sum(FG3A, na.rm = TRUE)
+  ) |> 
+  filter(Total_FG3M > 1000) |> 
+  arrange(desc(Total_FG3M)) |> 
+  head(10) |> 
+  ggplot(aes(x = reorder(PLAYER_NAME, Total_FG3M), y = Total_FG3M)) +
+  geom_bar(stat = "identity", aes(fill = as.factor(-Total_FG3M)), show.legend = FALSE) +
+  scale_fill_brewer(palette = "PRGn") +
+  labs(
+    title = "Top 10 total de \narremessos de 3 pontos",
+    x = "Atleta",
+    y = "Total"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  coord_flip()
+  
+```
+
+Algumas figuras aparecem tanto na lista de média da porcentagem dos arremessos de 3 pontos convertidos como na lista do total de de arremessos de 3 pontos feitos. Sephen Curry, KYle Korver, Klay Thompson, JJ Redick e Ray Allen aparecem nas duas listas. Diferentemente dos arremessos de quadra, a lista dos arremessos de 3 pontos é mais consistente pois 5 atletas possuem uma boa quantidade de arremessos convertidos e com uma média percentual de conversão boa.
+
+### Maiores passadores da liga
+
+```{r, echo = FALSE, fig.align = 'center'}
+jogos_detalhados |> 
+  group_by(PLAYER_NAME) |> 
+  summarise(
+    Media_AST = round(mean(AST, na.rm = TRUE), 3),
+    Total_AST = sum(AST, na.rm = TRUE)
+  ) |> 
+  arrange(desc(Media_AST)) |> 
+  head(10) |> 
+  ggplot(aes(x = reorder(PLAYER_NAME, Media_AST), y = Media_AST)) +
+  geom_bar(stat = "identity", aes(fill = as.factor(-Media_AST)), show.legend = FALSE) +
+  scale_fill_brewer(palette = "RdYlBu") +
+  labs(
+    title = "Top 10 maiores \nmédias de assitência",
+    x = "Atleta",
+    y = "Valor Médio"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  coord_flip()
+  
+```
+
+Na lista das médias de assistências, podemos ver grandes nomes dos armadores (point guards) da liga. Steve Nash e Jason Kidd mesmo eles tendo entrado na liga em 1996 e 1994 respectivamente, possuem boas médias, a despeito de uma boa parte das estatísticas referentes a eles não estarem no conjunto de dados. Chris Paul é um outro grande nome como armador na NBA. Trae Young e Luka Doncic são jovens promissores na liga, bons passadores e pontuadores, provavelmente estarão entre os grandes nomes da liga no futuro.
+
+Ao tratar da lista em quantidade de assistência feitas, aparecem nomes consagrados como LeBron James e Chris Paul no topo da lista, lembrando que Steve Nash e Jason Kidd não são contmplados em toda a sua carreira por esse conjunto de dados. Russel Westbrook e Rajon Rondon, dois armadores de ofício também possuem bons números de assistências. Para quem acopanha a liga sabe que a mecânica de arremesso desses dois não são tão boas para serem bons pontuadores.
+
+```{r, echo = FALSE, fig.align = 'center'}
+jogos_detalhados |> 
+  group_by(PLAYER_NAME) |> 
+  summarise(
+    Media_AST = round(mean(AST, na.rm = TRUE), 3),
+    Total_AST = sum(AST, na.rm = TRUE)
+  ) |> 
+  arrange(desc(Total_AST)) |> 
+  head(10) |> 
+  ggplot(aes(x = reorder(PLAYER_NAME, Total_AST), y = Total_AST)) +
+  geom_bar(stat = "identity", aes(fill = as.factor(-Total_AST)), show.legend = FALSE) +
+  scale_fill_brewer(palette = "RdYlBu") +
+  labs(
+    title = "Top 10 totais \nde assitência",
+    x = "Atleta",
+    y = "Total"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  coord_flip()
+  
+```
+
+### Maiores bloqueadores da liga
+
+Os tocos, apesar de não serem tão comuns, muitas vezes são situações muito empolgantes que acordam a torcida em uma partida. No gráfico abaixo veremos as médias dos maiores bloqueadores da liga no período datado no conjunto de dados. Encontramos os nomes de Anthony Davis, Rudy Gobert, Alonzo Mourning, Tim Duncam, Serge Ibaka e Jermaine O'Neal no top 10 na média de tocos por partida. Destaco esses nomes por serem mais conhecidos.
+
+```{r, echo = FALSE, fig.align = 'center'}
+jogos_detalhados |> 
+  group_by(PLAYER_NAME) |> 
+  summarise(
+    Media_BLK = round(mean(BLK, na.rm = TRUE), 3),
+    Total_BLK = sum(BLK, na.rm = TRUE)
+  ) |> 
+  filter(Total_BLK > 500) |>
+  arrange(desc(Media_BLK)) |> 
+  head(10) |> 
+  ggplot(aes(x = reorder(PLAYER_NAME, Media_BLK), y = Media_BLK)) +
+  geom_bar(stat = "identity", aes(fill = as.factor(-Media_BLK)), show.legend = FALSE) +
+  scale_fill_brewer(palette = "Spectral") +
+  labs(
+    title = "Top 10 maiores \nmédias de bloqueios (tocos)",
+    x = "Atleta",
+    y = "Valor Médio"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  coord_flip()
+  
+```
+
+Na sequencia vamos ver os nomes que aparecem quando consideramos o totatal de tocos na carreira do atleta.
+
+```{r, echo = FALSE, fig.align = 'center'}
+jogos_detalhados |> 
+  group_by(PLAYER_NAME) |> 
+  summarise(
+    Media_BLK = round(mean(BLK, na.rm = TRUE), 3),
+    Total_BLK = sum(BLK, na.rm = TRUE)
+  ) |> 
+  arrange(desc(Total_BLK)) |> 
+  head(10) |> 
+  ggplot(aes(x = reorder(PLAYER_NAME, Total_BLK), y = Total_BLK)) +
+  geom_bar(stat = "identity", aes(fill = as.factor(-Total_BLK)), show.legend = FALSE) +
+  scale_fill_brewer(palette = "Spectral") +
+  labs(
+    title = "Top 10 totais \nde bloqueios (tocos)",
+    x = "Atleta",
+    y = "Total"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  coord_flip()
+  
+```
+
+Grandes nomes que estão ou já passaram pela liga aparecem na lista, como Howard, que já recebeu a alcunha de Super Man, devido ao seu potencial defensivo e seu saltos extraordinários. Outros nomes importantes como Tim Duncam, Pau Gasol, Brook Lopez e DeAndre Jordan aparecem com quantidades razoavéis de tocos feitos.
+
+### Roubadas de bolas
+
+Roubar uma posse de bola no basquete é deveras difiícil devido que as faltas são muito fáceis de serem feitas. Normalmente elas ocorrem durante um passe mal dado ou descuido de um atleta. Abaixo, novamente, iremos ver a média de roubadas de bola por jogador e a quantidade total de roubadas de bola por jogador.
+
+```{r, echo = FALSE, fig.align = 'center'}
+jogos_detalhados |> 
+  group_by(PLAYER_NAME) |> 
+  summarise(
+    Media_STL = round(mean(STL, na.rm = TRUE), 3),
+    Total_STL = sum(STL, na.rm = TRUE)
+  ) |> 
+  filter(Total_STL > 500) |>
+  arrange(desc(Media_STL)) |> 
+  head(10) |> 
+  ggplot(aes(x = reorder(PLAYER_NAME, Media_STL), y = Media_STL)) +
+  geom_bar(stat = "identity", aes(fill = as.factor(-Media_STL)), show.legend = FALSE) +
+  scale_fill_brewer(palette = "PuOr") +
+  labs(
+    title = "Top 10 maiores médias \nde roubadas de bola",
+    x = "Atleta",
+    y = "Valor Médio"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  coord_flip()
+  
+```
+
+Dois nomes bastante conhecidos aparecem nessa lista, Chris Paul, Allen Iverson, Jason Kidd, Stephen Curry, Kawhai Leonard, alguns armadores natos, outros ala-armadores (shoting-guard) ou alas (small-foward), normalmente as posiç'oes que tem possuem uma maior facilidade de interceptar passes devido a sua capacidade de leitura de jogo. Abaixo a lista com os atletas com mais roubadas de bola.
+
+```{r, echo = FALSE, fig.align = 'center'}
+jogos_detalhados |> 
+  group_by(PLAYER_NAME) |> 
+  summarise(
+    Media_STL = round(mean(STL, na.rm = TRUE), 3),
+    Total_STL = sum(STL, na.rm = TRUE)
+  ) |> 
+  arrange(desc(Total_STL)) |> 
+  head(10) |> 
+  ggplot(aes(x = reorder(PLAYER_NAME, Total_STL), y = Total_STL)) +
+  geom_bar(stat = "identity", aes(fill = as.factor(-Total_STL)), show.legend = FALSE) +
+  scale_fill_brewer(palette = "Spectral") +
+  labs(
+    title = "Top 10 totais \nde roubadas de bola",
+    x = "Atleta",
+    y = "Total"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  coord_flip()
+  
+```
+
+Novamente, nomes muito conhecidos, muitos deles armadores e um destaque em especial para Manu Ginobili, que não era americano, e sim argentino campeão olímpico em 2004, estando entre o top 10 de totais de roubadas de bola na liga. Chris Paul alé de ter uma média
+
+### Atletas com maiores Turnovers
+
+Bom, temos que falar de coisas ruins também. Turnovers mede o desperdício da posse de bola provocada por um atleta, em outras palavras, quando um atleta perde a bola, ou por erro e descuido, ou por pressão do time adversário.
+
+```{r, echo = FALSE, fig.align = 'center'}
+jogos_detalhados |> 
+  group_by(PLAYER_NAME) |> 
+  summarise(
+    Media_TO = round(mean(TO, na.rm = TRUE), 3),
+    Total_TO = sum(TO, na.rm = TRUE)
+  ) |> 
+  arrange(desc(Media_TO)) |> 
+  head(10) |> 
+  ggplot(aes(x = reorder(PLAYER_NAME, Media_TO), y = Media_TO)) +
+  geom_bar(stat = "identity", aes(fill = as.factor(-Media_TO)), show.legend = FALSE) +
+  scale_fill_brewer(palette = "RdGy") +
+  labs(
+    title = "Top 10 maiores \nmédias de turnovers",
+    x = "Atleta",
+    y = "Valor Médio"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  coord_flip()
+  
+```
+
+Podemos observar que o top 10 da lista é recheada de atletas bastante conhecidos, a maioria armadores que concentram muito a posse de bola em suas mãos. Por isso é normal possuirem uma média grande de turnovers em seus currículos. Agora vamos ver se a lista permanece constante considerando o total de turnovers.
+
+```{r, echo = FALSE, fig.align = 'center'}
+jogos_detalhados |> 
+  group_by(PLAYER_NAME) |> 
+  summarise(
+    Media_TO = round(mean(TO, na.rm = TRUE), 3),
+    Total_TO = sum(TO, na.rm = TRUE)
+  ) |> 
+  arrange(desc(Total_TO)) |> 
+  head(10) |> 
+  ggplot(aes(x = reorder(PLAYER_NAME, Total_TO), y = Total_TO)) +
+  geom_bar(stat = "identity", aes(fill = as.factor(-Total_TO)), show.legend = FALSE) +
+  scale_fill_brewer(palette = "RdGy") +
+  labs(
+    title = "Top 10 totais \nde turnovers",
+    x = "Atleta",
+    y = "Total"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  coord_flip()
+  
+```
+
+Pode-se observar que as grandes estrelas que normalmente definem as partidas, que permanecem com a bola por mais tempo, tem a maior quantidade de turnovers. LeBron JAmes, Russel Westbrook e James Harden são alguns que aparecem nas duas listas.
+
+## Conclusões
+
+Pelo comportamento da dos dados podemos dizer que realmente a liga tornou-se mais ofensiva ao longo dos anos. A quantidade e a conversão de aremessos aumentou consideravelmente, principalmente da linha dos 3 pontos. Os rebotes também nos mostram um pouco disso, que a dinâmica mudou e que os times, para terem mais arremessos, estão finalizando antes de um bom posicionamento dos seus pivôs. Isso é percebido pelo aumento dos rebotes defensivos e pela diminuição dos rebotes ofensivos, demonstrando que está muito mais fácil para a defesa fazer o seu papel se o time adversário não acertar o arremesso. As assistências, segundo a nossa análise, aumentaram com as temporadas, indicando uma maior eficiência das finalizações e consequentemente uma amostra da ofensividade do jogo atualmente.
+
+Em relação aos jogadores, mesmo o conjunto de dados sendo datado entre as temporadas de 2004 e 2020, vemos como algumas das estrelas aparecem mesmo tendo algumas de suas estatíticas não tendo sido computadas, por motivos de terem entrado na NBA previamente a 2004. 
+
+LeBron James sendo aparecendo nas listas, mostrando o quão importante para a liga ele foi e ainda está sendo, pois seu nome sempre está relacionado a coisas rentáveis para a liga. Stephen Curry é um dos grandes jogadores que de certa forma moldou a liga para se tornar mais ofensiva, ele e Klay Thompson comandando o time do Golden State Warrios e seus arremessos de 3 pontos, algumas vezes impossíveis, e Ray Allen com uma mecânica de arremesso incrível durante a sua carreira. Steve Nash foi um dos grandes armadores que a liga já teve, possuia uma visão de jogo espetacular e colocava os companheiros de time em situações muito favoráveis com passes incríveis. Nos bloqueios temos a presença de nomes como Alonzo Mourning, Dwight Howard, Tim Duncam e Pau Gasol, pivôs e ala-pivôs (centers e power-foward). Nos turnovers temos também os grandes nomes da liga, tanto por serem atletas que passam muito tempo com a bola como também por serem as pessoas decisivas durante as partidas.
+
+Finalizando, vimos como a liga evolui para se tornar cada vez mais um entreterimento com partidas com muitos pontos, mais empolgantes, um verdadeiro show. Também vimos quem são ou foram os atletas que são os melhores em cada quesito, ou pior quando se trata de turnovers, e podemos concluir que a liga gira em torno de algumas super estrelas que dominam as quadras em vários desses quesitos estudados.
