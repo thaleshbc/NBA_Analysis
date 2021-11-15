@@ -1,10 +1,10 @@
 ---
-title: "Análise sobre NBA (2004-2020)"
+title: "Análise sobre dados da NBA (2004-2020)"
 author: "Thales Henrique"
 date: "05-11-2021"
 output:
   prettydoc::html_pretty:
-    theme: tactile
+    theme: HPSTR
     highlight: github
 ---
 
@@ -726,7 +726,7 @@ jogos_detalhados |>
   head(10) |> 
   ggplot(aes(x = reorder(PLAYER_NAME, Total_STL), y = Total_STL)) +
   geom_bar(stat = "identity", aes(fill = as.factor(-Total_STL)), show.legend = FALSE) +
-  scale_fill_brewer(palette = "Spectral") +
+  scale_fill_brewer(palette = "PuOr") +
   labs(
     title = "Top 10 totais \nde roubadas de bola",
     x = "Atleta",
